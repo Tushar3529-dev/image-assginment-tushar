@@ -26,13 +26,31 @@ void main() {
   setUp(() {
     cloudinary = MockCloudinaryService();
     repository = MockImageRepository();
+    when(
+      () => repository.addImage(
+        referenceName: any(named: 'referenceName'),
+        imageUrl: any(named: 'imageUrl'),
+        publicId: any(named: 'publicId'),
+      ),
+    ).thenAnswer((_) async {});
   });
 
   UploadBloc build({PickImageFn? pick}) => UploadBloc(
     cloudinaryService: cloudinary,
     imageRepository: repository,
     pickImage: pick ?? (_) async => null,
+    successHold: Duration.zero,
   );
+
+  void stubUpload({List<double> progress = const []}) {
+    when(
+      () => cloudinary.uploadImage(any(), onProgress: any(named: 'onProgress')),
+    ).thenAnswer((invocation) async {
+      final report = invocation.namedArguments[#onProgress] as UploadProgress?;
+      progress.forEach(report ?? (_) {});
+      return (url: 'https://x/y.jpg', publicId: 'nap_images/y');
+    });
+  }
 
   group('UploadBloc', () {
     blocTest<UploadBloc, UploadState>(
@@ -61,32 +79,26 @@ void main() {
           errorMessage: 'Please enter a reference name',
         ),
       ],
-      verify: (_) => verifyNever(() => cloudinary.uploadImage(any())),
+      verify: (_) => verifyNever(
+        () =>
+            cloudinary.uploadImage(any(), onProgress: any(named: 'onProgress')),
+      ),
     );
 
     blocTest<UploadBloc, UploadState>(
       'success path emits uploading, success, then initial',
-      setUp: () {
-        when(() => cloudinary.uploadImage(any())).thenAnswer(
-          (_) async => (url: 'https://x/y.jpg', publicId: 'nap_images/y'),
-        );
-        when(
-          () => repository.addImage(
-            referenceName: any(named: 'referenceName'),
-            imageUrl: any(named: 'imageUrl'),
-            publicId: any(named: 'publicId'),
-          ),
-        ).thenAnswer((_) async {});
-      },
+      setUp: stubUpload,
       build: build,
       seed: () => pickedState,
       act: (b) => b.add(const UploadSubmitted('  Test 1 ')),
+      wait: const Duration(milliseconds: 10),
       expect: () => [
         UploadState(status: UploadStatus.uploading, pickedFile: file),
         UploadState(
           status: UploadStatus.success,
           pickedFile: file,
           lastUploadedName: 'Test 1',
+          progress: 1,
         ),
         const UploadState(),
       ],
@@ -100,9 +112,43 @@ void main() {
     );
 
     blocTest<UploadBloc, UploadState>(
+      'upload progress is reported, throttled to 2% steps',
+      setUp: () => stubUpload(progress: [0.005, 0.5, 0.51, 1.0]),
+      build: build,
+      seed: () => pickedState,
+      act: (b) => b.add(const UploadSubmitted('Test 1')),
+      wait: const Duration(milliseconds: 10),
+      expect: () => [
+        UploadState(status: UploadStatus.uploading, pickedFile: file),
+        UploadState(
+          status: UploadStatus.uploading,
+          pickedFile: file,
+          progress: 0.5,
+        ),
+        UploadState(
+          status: UploadStatus.uploading,
+          pickedFile: file,
+          progress: 1,
+        ),
+        UploadState(
+          status: UploadStatus.success,
+          pickedFile: file,
+          lastUploadedName: 'Test 1',
+          progress: 1,
+        ),
+        const UploadState(),
+      ],
+    );
+
+    blocTest<UploadBloc, UploadState>(
       'service error emits failure with a readable message, keeps the file',
       setUp: () {
-        when(() => cloudinary.uploadImage(any())).thenThrow(
+        when(
+          () => cloudinary.uploadImage(
+            any(),
+            onProgress: any(named: 'onProgress'),
+          ),
+        ).thenThrow(
           const CloudinaryException('Upload failed (400): Bad preset'),
         );
       },

@@ -41,7 +41,10 @@ void main() {
   });
 
   Future<GoRouter> pumpOnPreview(WidgetTester tester) async {
-    final router = createRouter(uploadBloc);
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final router = createRouter(uploadBloc, initialLocation: AppRoutes.upload);
     addTearDown(router.dispose);
     await tester.pumpWidget(
       MultiBlocProvider(

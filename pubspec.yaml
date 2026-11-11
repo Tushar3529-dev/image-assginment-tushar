@@ -58,6 +58,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   bloc_test: ^10.0.0
   mocktail: ^1.0.5
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -69,6 +71,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/branding/splash_tile.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -100,3 +105,20 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/branding/app_icon.png
+  remove_alpha_ios: true
+  adaptive_icon_background: "#1DA51D"
+  adaptive_icon_foreground: assets/branding/app_icon_foreground.png
+  min_sdk_android: 23
+
+flutter_native_splash:
+  color: "#1DA51D"
+  image: assets/branding/splash_tile.png
+  android_12:
+    color: "#1DA51D"
+    image: assets/branding/splash_android12.png
+  web: false

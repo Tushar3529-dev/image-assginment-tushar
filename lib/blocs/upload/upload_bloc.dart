@@ -20,6 +20,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
     required CloudinaryService cloudinaryService,
     required ImageRepository imageRepository,
     PickImageFn? pickImage,
+    this.successHold = const Duration(milliseconds: 900),
   }) : _cloudinary = cloudinaryService,
        _repository = imageRepository,
        _pickImage = pickImage ?? _defaultPicker,
@@ -32,6 +33,10 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
   final CloudinaryService _cloudinary;
   final ImageRepository _repository;
   final PickImageFn _pickImage;
+
+  /// How long the success state stays up (so the UI can show its check mark)
+  /// before the bloc resets to initial.
+  final Duration successHold;
 
   static Future<XFile?> _defaultPicker(ImageSource source) =>
       ImagePicker().pickImage(source: source, imageQuality: 80, maxWidth: 1600);
@@ -83,10 +88,24 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
     }
 
     emit(
-      state.copyWith(status: UploadStatus.uploading, errorMessage: () => null),
+      state.copyWith(
+        status: UploadStatus.uploading,
+        progress: 0,
+        errorMessage: () => null,
+      ),
     );
     try {
-      final result = await _cloudinary.uploadImage(file);
+      var lastReported = 0.0;
+      final result = await _cloudinary.uploadImage(
+        file,
+        onProgress: (fraction) {
+          // Throttle to ~2% steps so a big image doesn't flood the UI.
+          if (emit.isDone) return;
+          if (fraction - lastReported < 0.02 && fraction < 1) return;
+          lastReported = fraction;
+          emit(state.copyWith(progress: fraction));
+        },
+      );
       await _repository.addImage(
         referenceName: name,
         imageUrl: result.url,
@@ -97,9 +116,11 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
           status: UploadStatus.success,
           pickedFile: file,
           lastUploadedName: name,
+          progress: 1,
         ),
       );
-      emit(const UploadState());
+      await Future<void>.delayed(successHold);
+      if (!emit.isDone) emit(const UploadState());
     } catch (e) {
       emit(
         state.copyWith(

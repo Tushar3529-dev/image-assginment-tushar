@@ -48,9 +48,11 @@ lib/
 
 | Path              | Screen           | Notes                                    |
 |-------------------|------------------|------------------------------------------|
+| `/splash`         | SplashScreen     | initial location; goes to `/upload`      |
 | `/upload`         | PickSourceScreen | branch 0                                 |
 | `/upload/preview` | PreviewScreen    | child of `/upload`, bottom bar still shown |
 | `/images`         | ImagesScreen     | branch 1                                 |
+| `/images/view/:id`| ImageViewerScreen| on the root navigator, covers the bottom bar |
 
 * **Shell:** `StatefulShellRoute.indexedStack` renders `HomeShell` (custom
   bottom bar) around the active branch. Each tab has its own navigation stack,
@@ -73,6 +75,45 @@ lib/
   fell back to `NoTransitionPage`, which has no slide transition and no iOS
   swipe-back.
 * Unknown paths show a "Page not found" screen with a button back to `/upload`.
+
+## Icon, splash and motion
+
+* **App icon:** `assets/branding/icon_source.png` is the designed icon. The
+  PNGs next to it (full-bleed iOS icon, Android adaptive foreground, splash
+  tiles) are generated from it, then `flutter_launcher_icons` and
+  `flutter_native_splash` (both dev-only; config in `pubspec.yaml`) turn those
+  into the platform files:
+
+  ```bash
+  dart run flutter_launcher_icons
+  dart run flutter_native_splash:create
+  ```
+
+  Note: `flutter_launcher_icons` 0.14 wrongly rewrites
+  `ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS` in
+  `ios/Runner.xcodeproj/project.pbxproj` to `AppIcon`; set it back to `YES`
+  after regenerating.
+* **Splash:** the native splash (green, white tile) shows instantly; the
+  Flutter `SplashScreen` starts from the same frame, bounces the tile, fades in
+  the name, tagline and a progress line, and leaves once the animation has
+  played and the first Images snapshot has arrived (3 s cap). The app shell
+  fades in over it.
+* **Pick screen:** header, tinted boxes with slowly moving dashed borders, a
+  bobbing gallery icon, press-in feedback, staggered entrance.
+* **Upload:** real progress from the bytes sent (`CloudinaryService` wraps the
+  multipart body stream), shown as "Uploading 42%" and a bar under the photo,
+  then "Saving…", then a check mark (the bloc holds `success` for 0.9 s before
+  resetting), a haptic tap and a toast. An empty name shakes the field.
+* **Images:** the grid diffs each Firestore snapshot (`LiveImageGrid` with
+  `SliverAnimatedGrid`): new docs pop in with a green ring and a "New" badge
+  for ~2.5 s, deleted docs shrink and fade out. Pulsing skeletons while
+  loading, a live count chip, an empty state and a retry on errors.
+* **Viewer:** tap a tile and it zooms out of that tile to full screen; pinch
+  or double-tap to zoom, swipe down to close. If the doc is deleted while it's
+  open, the viewer closes and says so.
+* **Bottom bar:** a green pill slides under the selected tab; the icon pops.
+* **Reduced motion:** with the OS "reduce motion" setting on, durations drop
+  to zero and looping effects (dashes, bobbing, skeleton pulse) don't run.
 
 ## Upload flow: Cloudinary → Firestore
 
@@ -142,10 +183,16 @@ flutter test
 ```
 
 * `UploadBloc`: pick, cancelled pick, empty name → failure, success → success
-  then initial, service error → failure, clear.
+  then initial, progress reported in 2% steps, service error → failure, clear.
 * `ImagesBloc`: a stream emitting two lists → two loaded states; stream error
   → failure.
 * Router: `/upload/preview` with no picked file redirects to `/upload`; with a
   picked file it stays; unknown route shows "Page not found".
 * Preview back: system back and an iOS edge swipe both return to `/upload`
   and dispatch `ImageCleared`.
+* Splash: shows the app name, then moves on to `/upload`.
+* Viewer: a deleted image shows "This image was deleted"; Close goes back.
+* Live grid: a new doc pops in marked new, the mark wears off, a deleted doc
+  animates out, an empty list shows the empty state.
+* `CloudinaryService`: byte progress climbs to 1.0; a 400 becomes a readable
+  error.

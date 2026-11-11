@@ -10,6 +10,7 @@ class UploadState extends Equatable {
     this.pickedFile,
     this.errorMessage,
     this.lastUploadedName,
+    this.progress = 0,
   });
 
   final UploadStatus status;
@@ -17,7 +18,13 @@ class UploadState extends Equatable {
   final String? errorMessage;
   final String? lastUploadedName;
 
+  /// Fraction of the image bytes sent to Cloudinary (0.0 to 1.0).
+  final double progress;
+
   bool get isUploading => status == UploadStatus.uploading;
+
+  /// Uploading, or showing the success check before the reset.
+  bool get isBusy => isUploading || status == UploadStatus.success;
 
   /// Nullable fields are passed as closures so they can be set to null.
   UploadState copyWith({
@@ -25,6 +32,7 @@ class UploadState extends Equatable {
     File? Function()? pickedFile,
     String? Function()? errorMessage,
     String? Function()? lastUploadedName,
+    double? progress,
   }) {
     return UploadState(
       status: status ?? this.status,
@@ -33,6 +41,7 @@ class UploadState extends Equatable {
       lastUploadedName: lastUploadedName != null
           ? lastUploadedName()
           : this.lastUploadedName,
+      progress: progress ?? this.progress,
     );
   }
 
@@ -42,5 +51,6 @@ class UploadState extends Equatable {
     pickedFile?.path,
     errorMessage,
     lastUploadedName,
+    progress,
   ];
 }
