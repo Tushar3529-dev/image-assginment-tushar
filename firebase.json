@@ -1,0 +1,33 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "testnapproject",
+          "appId": "1:227947531811:android:498a2cd35114c04e716b96",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "testnapproject",
+          "appId": "1:227947531811:ios:5dbd10dda263e4b3716b96",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "testnapproject",
+          "configurations": {
+            "android": "1:227947531811:android:498a2cd35114c04e716b96",
+            "ios": "1:227947531811:ios:5dbd10dda263e4b3716b96"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

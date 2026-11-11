@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "227947531811",
+    "project_id": "testnapproject",
+    "storage_bucket": "testnapproject.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:227947531811:android:498a2cd35114c04e716b96",
+        "android_client_info": {
+          "package_name": "com.example.image_assignment"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqbvRVWN6IswIA2V-AXcEUoPzHcAb75b4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Open test mode, scoped to the images collection only.
+    match /images/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll(['referenceName', 'imageUrl', 'publicId', 'createdAt'])
+                    && request.resource.data.referenceName is string
+                    && request.resource.data.referenceName.size() > 0;
+      allow delete: if true;
+      allow update: if false;
+    }
+    // Everything else: deny.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
