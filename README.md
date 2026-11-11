@@ -270,6 +270,7 @@ image_assignment/
 │   │   ├── app_config.dart            # Cloudinary cloud name + unsigned preset
 │   │   ├── app_theme.dart             # colours, Montserrat, input styles
 │   │   ├── app_motion.dart            # animation timings + reduce-motion check
+│   │   └── app_scroll_behavior.dart   # lets mouse drags scroll too
 │   ├── models/
 │   │   └── image_item.dart            # Equatable model built from a Firestore doc
 │   ├── services/
