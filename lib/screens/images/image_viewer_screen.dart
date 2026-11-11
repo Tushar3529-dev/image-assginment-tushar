@@ -11,6 +11,7 @@ import '../../core/app_motion.dart';
 import '../../models/image_item.dart';
 import '../../router/app_routes.dart';
 import '../../widgets/app_snackbar.dart';
+import '../../widgets/delete_photo_dialog.dart';
 
 /// Full-screen view of one image: pinch or double-tap to zoom, swipe down to
 /// close. If the document is deleted while it's open, the viewer closes.
@@ -44,6 +45,10 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
   double _dragDy = 0;
   bool _zoomed = false;
   bool _closing = false;
+
+  /// True once the user deleted this photo from here, so the "deleted
+  /// elsewhere" message isn't shown for our own delete.
+  bool _deletedHere = false;
 
   @override
   void initState() {
@@ -79,6 +84,13 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
     } else {
       context.go(AppRoutes.images);
     }
+  }
+
+  Future<void> _deletePhoto(ImageItem item) async {
+    final bloc = context.read<ImagesBloc>();
+    if (!await confirmDeletePhoto(context, item)) return;
+    _deletedHere = true;
+    bloc.add(ImageDeleteRequested(item));
   }
 
   void _onDoubleTap() {
@@ -135,7 +147,9 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
         listenWhen: (prev, curr) =>
             _find(prev.images) != null && _find(curr.images) == null,
         listener: (context, state) {
-          showAppSnackBar(context, 'This image was deleted', isError: true);
+          if (!_deletedHere) {
+            showAppSnackBar(context, 'This image was deleted', isError: true);
+          }
           _close();
         },
         builder: (context, state) {
@@ -218,6 +232,11 @@ class _ImageViewerScreenState extends State<ImageViewerScreen>
                               ),
                             ),
                           ),
+                          if (item != null)
+                            PhotoMenuButton(
+                              light: true,
+                              onDelete: () => _deletePhoto(item),
+                            ),
                         ],
                       ),
                     ),

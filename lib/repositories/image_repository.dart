@@ -31,4 +31,9 @@ class ImageRepository {
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
+
+  /// Deletes the Firestore document. The live stream then drops the tile on
+  /// every device. The Cloudinary file is NOT removed: that needs the API
+  /// secret, which must never ship in the app (see README).
+  Future<void> deleteImage(String id) => _images.doc(id).delete();
 }

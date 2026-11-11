@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/State-BLoC-1DA51D" alt="BLoC">
   <img src="https://img.shields.io/badge/Storage-Cloudinary-3448C5" alt="Cloudinary">
   <img src="https://img.shields.io/badge/Database-Cloud%20Firestore-FFCA28?logo=firebase" alt="Cloud Firestore">
-  <img src="https://img.shields.io/badge/Tests-23%20passing-1DA51D" alt="19 tests passing">
+  <img src="https://img.shields.io/badge/Tests-27%20passing-1DA51D" alt="19 tests passing">
 </p>
 
 ---
@@ -46,6 +46,9 @@
 4. The **Images** tab lists every upload, oldest first. New images appear and
    deleted ones disappear on their own, with no refresh, even when the change
    is made by hand in the Firebase console.
+5. Each photo has a **⋮ menu** (on its tile and in the full-screen viewer)
+   with **Delete photo**. After a confirmation it disappears from the gallery
+   on every device.
 
 ## Screenshots
 
@@ -94,6 +97,17 @@ All screenshots are from the iOS Simulator and live in
     <td align="center"><img src="screenshots/18_full_screen_viewer.jpg" width="190"><br><sub>Full-screen viewer</sub></td>
     <td></td>
     <td></td>
+  </tr>
+</table>
+
+### Deleting a photo
+
+<table>
+  <tr>
+    <td align="center"><img src="screenshots/19_photo_menu_delete.jpg" width="190"><br><sub>⋮ menu on a tile</sub></td>
+    <td align="center"><img src="screenshots/20_delete_confirm_dialog.jpg" width="190"><br><sub>Confirm before deleting</sub></td>
+    <td align="center"><img src="screenshots/21_photo_deleted_toast.jpg" width="190"><br><sub>Tile fades out, toast confirms</sub></td>
+    <td align="center"><img src="screenshots/22_viewer_menu_delete.jpg" width="190"><br><sub>⋮ menu in the viewer</sub></td>
   </tr>
 </table>
 
@@ -200,9 +214,15 @@ can't upload twice.
 
 **`ImagesBloc`** ([`lib/blocs/images`](lib/blocs/images))
 
-* One event, `ImagesSubscriptionRequested`, handled with
+* `ImagesSubscriptionRequested`, handled with
   `emit.forEach(repository.watchImages(), …)`.
-* State: `status` (`loading`, `loaded`, `failure`), `images`, `errorMessage`.
+* `ImageDeleteRequested(image)` (from the ⋮ → **Delete photo** → confirm
+  flow): marks the doc as deleting (its tile dims and locks), calls
+  `ImageRepository.deleteImage`, then posts a one-off notice ("'Beach'
+  deleted" or a readable error) that the screen shows as a toast. The tile
+  itself disappears through the live snapshot, like any other delete.
+* State: `status` (`loading`, `loaded`, `failure`), `images`, `errorMessage`,
+  `deletingIds`, `notice`.
 * Created **once** in `main.dart`, above the router, so the Firestore listener
   stays open for the whole session.
 
@@ -250,14 +270,20 @@ briefly has `createdAt == null` until the server fills it in;
 
 **Firestore decides which tiles exist; Cloudinary only serves the bytes.**
 
-* **Delete the Firestore doc:** the tile fades out within about a second.
+* **Delete in the app (⋮ → Delete photo):** removes the Firestore doc after a
+  confirmation; the tile fades out on every device. If the viewer is open on
+  that photo, it closes.
+* **Delete the Firestore doc in the console:** the tile fades out within about
+  a second.
 * **Delete only the Cloudinary asset:** the tile stays and shows a grey
   broken-image placeholder instead of crashing.
 * **Intended flow:** delete from both consoles by hand. The doc's `publicId`
   makes the matching asset easy to find in the `nap_images` folder.
 
-The app has no delete button on purpose: deleting from Cloudinary needs the API
-secret, which must never ship inside an app.
+**The app's delete removes the Firestore doc, not the Cloudinary file.**
+Deleting from Cloudinary needs the API secret, which must never ship inside an
+app. To remove files too, add a small server or Cloud Function (Blaze plan)
+that deletes by `publicId`, or clean up in the Cloudinary console.
 
 ## Folder structure
 
@@ -297,12 +323,13 @@ image_assignment/
 │       ├── dashed_border_box.dart     # CustomPainter dashed box (no package)
 │       ├── skeleton_box.dart          # pulsing placeholder
 │       ├── fade_slide_in.dart         # entrance animation
-│       └── app_snackbar.dart          # floating success / error toast
+│       ├── app_snackbar.dart          # floating success / error toast
+│       └── delete_photo_dialog.dart   # ⋮ menu + "Delete photo?" confirm
 ├── test/
 │   ├── blocs/                         # UploadBloc, ImagesBloc
 │   ├── services/                      # CloudinaryService progress and errors
 │   ├── router/                        # guard, splash, viewer, back navigation
-│   └── screens/                       # live grid add / delete, scrolling
+│   └── screens/                       # live grid, scrolling, delete menu
 ├── assets/branding/                   # icon source + generated icon/splash PNGs
 ├── screenshots/                       # the screenshots in this README
 ├── android/  ios/                     # platform projects (icons, splash, permissions)
@@ -331,6 +358,8 @@ create`; the app targets Android and iOS only.
   shrink and fade out. Empty and error states (with retry).
 * **Viewer:** zooms out of the tapped tile; pinch or double-tap to zoom, swipe
   down to close. It closes itself if the doc is deleted while open.
+* **Delete:** ⋮ on a tile or in the viewer → **Delete photo** → confirm. The
+  tile dims with a spinner, then fades out, and a toast confirms.
 * **Bottom bar:** a green pill slides under the selected tab.
 * **Scrolling:** the grid shows a scrollbar while scrolling and can be dragged
   with a finger, a trackpad or a mouse (`AppScrollBehavior`; Flutter's default
@@ -376,13 +405,16 @@ dart run flutter_native_splash:create
 
 ```bash
 flutter analyze   # no issues
-flutter test      # 23 tests
+flutter test      # 27 tests
 ```
 
 * **UploadBloc:** pick, cancelled pick, empty name → failure, success →
   success then initial, progress in 2% steps, service error → failure, clear.
 * **ImagesBloc:** a stream emitting two lists → two loaded states; stream
-  error → failure.
+  error → failure; a delete marks the doc in flight then reports success, and
+  a failed delete reports an error.
+* **Delete photo:** ⋮ → Delete photo → Delete sends `ImageDeleteRequested`;
+  Cancel deletes nothing.
 * **CloudinaryService:** byte progress climbs to 1.0; a 400 becomes a readable
   error.
 * **Router:** `/upload/preview` without a photo redirects to `/upload`; with a

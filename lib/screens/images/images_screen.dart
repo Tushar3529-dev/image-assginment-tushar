@@ -10,6 +10,8 @@ import '../../core/app_motion.dart';
 import '../../core/app_theme.dart';
 import '../../models/image_item.dart';
 import '../../router/app_routes.dart';
+import '../../widgets/app_snackbar.dart';
+import '../../widgets/delete_photo_dialog.dart';
 import '../../widgets/skeleton_box.dart';
 
 const _gridDelegate = SliverGridDelegateWithFixedCrossAxisCount(
@@ -25,7 +27,15 @@ class ImagesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BlocBuilder<ImagesBloc, ImagesState>(
+      body: BlocConsumer<ImagesBloc, ImagesState>(
+        // "'Test 1' deleted" / delete errors, shown once each.
+        listenWhen: (prev, curr) =>
+            curr.notice != null && curr.notice != prev.notice,
+        listener: (context, state) => showAppSnackBar(
+          context,
+          state.notice!.message,
+          isError: state.notice!.isError,
+        ),
         builder: (context, state) {
           final Widget body = switch (state.status) {
             ImagesStatus.loading => const _SkeletonGrid(
@@ -38,6 +48,7 @@ class ImagesScreen extends StatelessWidget {
             ImagesStatus.loaded => LiveImageGrid(
               key: const ValueKey('loaded'),
               images: state.images,
+              deletingIds: state.deletingIds,
             ),
           };
           return AnimatedSwitcher(
@@ -100,9 +111,16 @@ class _Header extends StatelessWidget {
 /// Grid that mirrors the Firestore list and animates the difference:
 /// new documents pop in (and glow for a moment), deleted ones fade out.
 class LiveImageGrid extends StatefulWidget {
-  const LiveImageGrid({super.key, required this.images});
+  const LiveImageGrid({
+    super.key,
+    required this.images,
+    this.deletingIds = const {},
+  });
 
   final List<ImageItem> images;
+
+  /// Docs being deleted right now; their tiles are dimmed and locked.
+  final Set<String> deletingIds;
 
   @override
   State<LiveImageGrid> createState() => _LiveImageGridState();
@@ -180,6 +198,13 @@ class _LiveImageGridState extends State<LiveImageGrid> {
     super.dispose();
   }
 
+  Future<void> _confirmAndDelete(ImageItem item) async {
+    final bloc = context.read<ImagesBloc>();
+    if (await confirmDeletePhoto(context, item)) {
+      bloc.add(ImageDeleteRequested(item));
+    }
+  }
+
   Widget _animatedTile(
     ImageItem item,
     Animation<double> animation, {
@@ -199,8 +224,10 @@ class _LiveImageGridState extends State<LiveImageGrid> {
             key: ValueKey(item.id),
             item: item,
             fresh: _fresh.containsKey(item.id),
+            deleting: widget.deletingIds.contains(item.id),
             onTap: (rect) =>
                 context.go(AppRoutes.imageViewer(item.id), extra: rect),
+            onDelete: removing ? null : () => _confirmAndDelete(item),
           ),
         ),
       ),
@@ -254,9 +281,17 @@ class ImageTile extends StatelessWidget {
     required this.item,
     required this.fresh,
     required this.onTap,
+    this.onDelete,
+    this.deleting = false,
   });
 
   final ImageItem item;
+
+  /// Opens the ⋮ menu's "Delete photo" flow. Null hides the ⋮ button.
+  final VoidCallback? onDelete;
+
+  /// A delete is in flight: dim the tile and block taps.
+  final bool deleting;
 
   /// Just arrived: show a green ring and a "New" badge for a moment.
   final bool fresh;
@@ -330,20 +365,52 @@ class ImageTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
-                child: Builder(
-                  builder: (tileContext) => InkWell(
-                    onTap: () {
-                      final box = tileContext.findRenderObject() as RenderBox?;
-                      onTap(
-                        box == null || !box.hasSize
-                            ? null
-                            : box.localToGlobal(Offset.zero) & box.size,
-                      );
-                    },
+              IgnorePointer(
+                ignoring: deleting,
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: Builder(
+                    builder: (tileContext) => InkWell(
+                      onTap: () {
+                        final box =
+                            tileContext.findRenderObject() as RenderBox?;
+                        onTap(
+                          box == null || !box.hasSize
+                              ? null
+                              : box.localToGlobal(Offset.zero) & box.size,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              if (onDelete != null)
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: IgnorePointer(
+                    ignoring: deleting,
+                    child: PhotoMenuButton(onDelete: onDelete!),
+                  ),
+                ),
+              IgnorePointer(
+                child: AnimatedOpacity(
+                  opacity: deleting ? 1 : 0,
+                  duration: duration,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
                   ),
                 ),
               ),

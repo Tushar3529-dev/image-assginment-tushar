@@ -58,4 +58,54 @@ void main() {
       ),
     ],
   );
+
+  group('delete', () {
+    blocTest<ImagesBloc, ImagesState>(
+      'deleting marks the doc as in flight, then reports success',
+      setUp: () =>
+          when(() => repository.deleteImage('a')).thenAnswer((_) async {}),
+      build: () => ImagesBloc(repository),
+      seed: () => ImagesState(status: ImagesStatus.loaded, images: [a, b]),
+      act: (bloc) => bloc.add(ImageDeleteRequested(a)),
+      expect: () => [
+        ImagesState(
+          status: ImagesStatus.loaded,
+          images: [a, b],
+          deletingIds: const {'a'},
+        ),
+        ImagesState(
+          status: ImagesStatus.loaded,
+          images: [a, b],
+          notice: const ImagesNotice(1, "'A' deleted"),
+        ),
+      ],
+      verify: (_) => verify(() => repository.deleteImage('a')).called(1),
+    );
+
+    blocTest<ImagesBloc, ImagesState>(
+      'a failed delete reports an error notice and unlocks the tile',
+      setUp: () => when(
+        () => repository.deleteImage('a'),
+      ).thenThrow(Exception('permission-denied')),
+      build: () => ImagesBloc(repository),
+      seed: () => ImagesState(status: ImagesStatus.loaded, images: [a]),
+      act: (bloc) => bloc.add(ImageDeleteRequested(a)),
+      expect: () => [
+        ImagesState(
+          status: ImagesStatus.loaded,
+          images: [a],
+          deletingIds: const {'a'},
+        ),
+        ImagesState(
+          status: ImagesStatus.loaded,
+          images: [a],
+          notice: const ImagesNotice(
+            1,
+            "Couldn't delete 'A'. Try again.",
+            isError: true,
+          ),
+        ),
+      ],
+    );
+  });
 }
