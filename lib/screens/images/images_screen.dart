@@ -112,6 +112,7 @@ class _LiveImageGridState extends State<LiveImageGrid> {
   static const _freshFor = Duration(milliseconds: 2600);
 
   final _gridKey = GlobalKey<SliverAnimatedGridState>();
+  final _scrollController = ScrollController();
   late final List<ImageItem> _items = [...widget.images];
   final Map<String, Timer> _fresh = {};
 
@@ -175,6 +176,7 @@ class _LiveImageGridState extends State<LiveImageGrid> {
     for (final timer in _fresh.values) {
       timer.cancel();
     }
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -209,21 +211,29 @@ class _LiveImageGridState extends State<LiveImageGrid> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        CustomScrollView(
-          key: const PageStorageKey('images-grid'),
-          slivers: [
-            SliverToBoxAdapter(child: _Header(count: _items.length)),
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverAnimatedGrid(
-                key: _gridKey,
-                initialItemCount: _items.length,
-                gridDelegate: _gridDelegate,
-                itemBuilder: (context, index, animation) =>
-                    _animatedTile(_items[index], animation),
+        // Scrollbar shows while scrolling (a thin iOS-style bar on iPhone),
+        // so it's clear the grid scrolls.
+        Scrollbar(
+          controller: _scrollController,
+          child: CustomScrollView(
+            key: const PageStorageKey('images-grid'),
+            controller: _scrollController,
+            // Bounce/overscroll even when everything fits, as feedback.
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(child: _Header(count: _items.length)),
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverAnimatedGrid(
+                  key: _gridKey,
+                  initialItemCount: _items.length,
+                  gridDelegate: _gridDelegate,
+                  itemBuilder: (context, index, animation) =>
+                      _animatedTile(_items[index], animation),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         IgnorePointer(
           ignoring: _items.isNotEmpty,

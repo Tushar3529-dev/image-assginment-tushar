@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/State-BLoC-1DA51D" alt="BLoC">
   <img src="https://img.shields.io/badge/Storage-Cloudinary-3448C5" alt="Cloudinary">
   <img src="https://img.shields.io/badge/Database-Cloud%20Firestore-FFCA28?logo=firebase" alt="Cloud Firestore">
-  <img src="https://img.shields.io/badge/Tests-19%20passing-1DA51D" alt="19 tests passing">
+  <img src="https://img.shields.io/badge/Tests-23%20passing-1DA51D" alt="19 tests passing">
 </p>
 
 ---
@@ -269,7 +269,7 @@ image_assignment/
 │   ├── core/
 │   │   ├── app_config.dart            # Cloudinary cloud name + unsigned preset
 │   │   ├── app_theme.dart             # colours, Montserrat, input styles
-│   │   └── app_motion.dart            # animation timings + reduce-motion check
+│   │   ├── app_motion.dart            # animation timings + reduce-motion check
 │   ├── models/
 │   │   └── image_item.dart            # Equatable model built from a Firestore doc
 │   ├── services/
@@ -301,7 +301,7 @@ image_assignment/
 │   ├── blocs/                         # UploadBloc, ImagesBloc
 │   ├── services/                      # CloudinaryService progress and errors
 │   ├── router/                        # guard, splash, viewer, back navigation
-│   └── screens/                       # live grid add / delete animation
+│   └── screens/                       # live grid add / delete, scrolling
 ├── assets/branding/                   # icon source + generated icon/splash PNGs
 ├── screenshots/                       # the screenshots in this README
 ├── android/  ios/                     # platform projects (icons, splash, permissions)
@@ -331,6 +331,9 @@ create`; the app targets Android and iOS only.
 * **Viewer:** zooms out of the tapped tile; pinch or double-tap to zoom, swipe
   down to close. It closes itself if the doc is deleted while open.
 * **Bottom bar:** a green pill slides under the selected tab.
+* **Scrolling:** the grid shows a scrollbar while scrolling and can be dragged
+  with a finger, a trackpad or a mouse (`AppScrollBehavior`; Flutter's default
+  ignores mouse drags, which made the grid feel stuck in the simulator).
 * **Reduce motion:** with the OS setting on, animations are instant and
   looping effects don't run.
 
@@ -372,7 +375,7 @@ dart run flutter_native_splash:create
 
 ```bash
 flutter analyze   # no issues
-flutter test      # 19 tests
+flutter test      # 23 tests
 ```
 
 * **UploadBloc:** pick, cancelled pick, empty name → failure, success →
@@ -388,3 +391,5 @@ flutter test      # 19 tests
   return to `/upload` and clear the photo.
 * **Live grid:** a new doc pops in marked "New", the mark wears off, a deleted
   doc animates out, and an empty list shows the empty state.
+* **Scrolling:** the Images grid scrolls with a touch drag, a mouse drag, a
+  trackpad drag and the mouse wheel.

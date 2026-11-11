@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'blocs/images/images_bloc.dart';
 import 'blocs/upload/upload_bloc.dart';
+import 'core/app_scroll_behavior.dart';
 import 'core/app_theme.dart';
 import 'firebase_options.dart';
 import 'repositories/image_repository.dart';
@@ -69,6 +70,7 @@ class _ImageAppState extends State<ImageApp> {
       title: 'Image Upload',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
+      scrollBehavior: const AppScrollBehavior(),
       routerConfig: _router,
     );
   }
